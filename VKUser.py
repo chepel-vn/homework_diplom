@@ -349,13 +349,13 @@ class User:
 
             id_groups_user_set = set(id_groups_user)
 
-            id_spy_groups_set = id_groups_set - id_groups_user_set
+            id_groups_set = id_groups_set - id_groups_user_set
 
             print(f" аккаунт id = {user_id}: \"{user.last_name} {user.first_name}\" обработан.")
 
         # print(id_spy_groups_set)
-        if len(id_spy_groups_set) > 0:
-            for id_spy_group in id_spy_groups_set:
+        if len(id_groups_set) > 0:
+            for id_spy_group in id_groups_set:
                 g = VKGroup.Group(id_spy_group)
                 g.get_name()
                 spy_groups.append(g)
