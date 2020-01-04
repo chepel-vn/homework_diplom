@@ -3,7 +3,9 @@ import requests
 import time
 
 # Variables which need to work with API VK
-params = {"access_token": "", "v": 5.103}
+params = {"access_token": "", "v": 5.103, "timeout": 10}
+
+COUNT_REQUESTS_EXECUTE = 25
 
 
 def get_token(filename):
@@ -92,7 +94,7 @@ def request_get(method, params_):
     Function execute request to API VK by method api vk and param and get response
 
     """
-
+    response = None
     try:
         while True:
             response = requests.get(method, params_)
@@ -109,6 +111,9 @@ def request_get(method, params_):
                 # because error appeared: many requests per second
                 time.sleep(1/10)
                 break
+    except requests.exceptions.ReadTimeout:
+        time.sleep(1)
+        request_get(method, params_)
     except Exception as e:
         value = (-1, e, None)
         return value
@@ -172,7 +177,7 @@ def auth():
 
 
 # Print information about result list of groups
-def print_groups(user, groups):
+def print_groups(caption, groups):
     """
 
     (User, list(Group, Group, ..., Group)) -> None
@@ -183,8 +188,7 @@ def print_groups(user, groups):
 
     print("")
     if len(groups) > 0:
-        print(f"Ни один из друзей пользователя c id = \"{user.user_id}\" {user.last_name} {user.first_name} не "
-              "является участником групп из списка:")
+        print(caption)
         for index, g in enumerate(groups, 1):
             print(f"{index}. \"{g.group_name}\"")
 

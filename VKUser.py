@@ -1,5 +1,6 @@
 import VKCommon
 import VKGroup
+import VKUsers
 
 
 class User:
@@ -92,8 +93,9 @@ class User:
 
         """
 
-        VKCommon.params["user_ids"] = nickname
-        error, msg, response = VKCommon.request_get("https://api.vk.com/method/users.get", VKCommon.params)
+        params_here = VKCommon.params.copy()
+        params_here["user_ids"] = nickname
+        error, msg, response = VKCommon.request_get("https://api.vk.com/method/users.get", params_here)
         if error != 0:
             value = (error, msg, None)
             return value
@@ -338,7 +340,6 @@ class User:
             value = (error, msg, None)
             return value
 
-        id_spy_groups_set = set()
         for user_id in user_friends:
             user = User(user_id)
 
@@ -353,7 +354,6 @@ class User:
 
             print(f" аккаунт id = {user_id}: \"{user.last_name} {user.first_name}\" обработан.")
 
-        # print(id_spy_groups_set)
         if len(id_groups_set) > 0:
             for id_spy_group in id_groups_set:
                 g = VKGroup.Group(id_spy_group)
@@ -361,4 +361,83 @@ class User:
                 spy_groups.append(g)
 
         value = (0, "", spy_groups)
+        return value
+
+    # Getting groups of user, members which not are friends of user
+    def get_spy_groups2(self, count_friends_limit):
+        """
+
+        (None) -> list(object Group, object Group, ..., object Group) or None
+
+        Function gets groups of user, members which not are friends of user (use method "execute" for more speed)
+
+        """
+
+        spy_groups = []
+        spy2_groups = []
+
+        error, msg, id_groups = self.get_id_groups()
+        if error != 0:
+            value = (error, msg, None)
+            return value
+        id_groups_set = set(id_groups)
+
+        # Get list of friends
+        error, msg, user_friends = self.get_id_friends()
+        if error != 0:
+            value = (error, msg, None)
+            return value
+
+        params_here = dict()
+        params_here["count"] = 1000
+        params_code = VKCommon.params.copy()
+        start = 0
+        count_remain_accounts = len(user_friends)
+        while True:
+            if start > len(user_friends):
+                break
+
+            script = ""
+            users = VKUsers.Users(user_friends)
+            for user in users.persons[start:start + VKCommon.COUNT_REQUESTS_EXECUTE:1]:
+                params_here["user_id"] = user["user_id"]
+                script += f"API.groups.get({params_here}),"
+
+            params_code["code"] = f"return [{script}];"
+            error, msg, response = VKCommon.request_get('https://api.vk.com/method/execute', params_code)
+            if error != 0:
+                value = (error, msg, None)
+                return value
+            response_json = response.json()
+            response_json_ = response_json["response"]
+            for response_item in response_json_:
+                if response_item:
+                    id_groups_user = response_item["items"]
+                    id_groups_user_set = set(id_groups_user)
+                    id_groups_set = id_groups_set - id_groups_user_set
+
+            start = start + VKCommon.COUNT_REQUESTS_EXECUTE
+
+            count_remain_accounts -= VKCommon.COUNT_REQUESTS_EXECUTE
+            if count_remain_accounts > 0:
+                print(f"осталось обработать {count_remain_accounts} аккаунтов")
+
+        if len(id_groups_set) > 0:
+            for id_spy_group in id_groups_set:
+                g = VKGroup.Group(id_spy_group)
+                g.get_name()
+                spy_groups.append(g)
+
+        error, msg, id_groups_common_friends_n = VKGroup.get_groups_with_common_friends(id_groups, count_friends_limit)
+        if error != 0:
+            value = (error, msg, None)
+            return value
+
+        if len(id_groups_common_friends_n) > 0:
+            for group_id in id_groups_common_friends_n:
+                g = VKGroup.Group(group_id)
+                g.get_name()
+                spy2_groups.append(g)
+
+        value = (0, "", (spy_groups, spy2_groups))
         return value

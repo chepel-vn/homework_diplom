@@ -1,6 +1,50 @@
 import VKCommon
 
 
+def get_groups_with_common_friends(id_groups_user, count_friends_limit):
+    # Get groups which have <=N common friends
+    params_here = dict()
+    params_here["count"] = count_friends_limit
+    params_here["filter"] = "friends"
+
+    params_code = VKCommon.params.copy()
+
+    start = 0
+    groups_common_friends_n = list()
+    while True:
+        if start > len(id_groups_user):
+            break
+
+        script = ""
+        for group in id_groups_user[start:start + VKCommon.COUNT_REQUESTS_EXECUTE:1]:
+            params_here["group_id"] = group
+            script += f"API.groups.getMembers({params_here}),"
+
+        params_code["code"] = f"return [{script}];"
+        error, msg, response = VKCommon.request_get('https://api.vk.com/method/execute', params_code)
+        if error != 0:
+            value = (error, msg, None)
+            return value
+
+        response_json = response.json()
+        response_json_ = response_json["response"]
+        for group_id, response_item in zip(id_groups_user, response_json_):
+            # print(group_id, response_item)
+            if not response_item:
+                continue
+
+            # print(group_id, response_item)
+            count = response_item["count"]
+            # Accumulate id groups which have <=N=count_friends_limit common friends
+            if count in range(1, count_friends_limit+1):
+                groups_common_friends_n.append(group_id)
+
+        start = start + VKCommon.COUNT_REQUESTS_EXECUTE
+
+    value = (0, "", groups_common_friends_n)
+    return value
+
+
 class Group:
     """
 
@@ -65,3 +109,7 @@ class Group:
 
         value = (0, "", self.group_name)
         return value
+
+
+
+
